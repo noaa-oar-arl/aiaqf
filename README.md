@@ -50,3 +50,8 @@ On GMU Hopper (1 node 6 core), the input generation process takes ~ 4 min and ea
 #SBATCH --mem=36G
 #SBATCH --time=0-00:30:00
 ```
+
+### AI model version log
+| Date        | Version (species_version#_epoch)       |
+| ----------- | -------------------------------------- |
+| Feb 18 2026 | pm25_l1_19, ozone_l2_19                |
