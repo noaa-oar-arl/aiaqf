@@ -1,0 +1,28 @@
+/fusion_model_set
+/obs
+/*.sh
+/*.out
+/.pre-commit-config.yaml
+/.git/
+/create_netrc.pl
+
+# Fix files
+/fix/airnow2aqm_grid_idx.nc
+/fix/regrid_*
+
+# ML model files
+/models/readme
+/models/backup/
+/models/__pycache__/
+
+# Toolkit
+/toolkit/*_regridder.py
+/toolkit/data_loaders_all.py
+/toolkit/__pycache__/
+
+# Output folder
+/output/20*/
+
+# Source code
+/__pycache__/
+/model_evaluation.py
