@@ -12,13 +12,13 @@ The UFS-AQM run used as input sources, forecasting period and chmiecal species, 
 | AQM_CYCLE        | Time cycle of UFS-AQM run, format=HH                    |
 | FCST_LENGTH      | Length of forecast timestep, unit=hour                  |
 | BNDY_LENGTH      | Time interval of UFS-AQM boundary conditions, unit=hour |
-| FCST_LAYER       | The UFS-AQM vertical layer where forecasting chmiecal species at. FCST_LAYER=64 represent the surface based on UFS-AQM configuration. |
+| FCST_LAYER       | The UFS-AQM vertical layer where forecasting chmiecal species at. FCST_LAYER=64 represents the surface based on UFS-AQM configuration. |
 | NO2              | Option to run NO2 forecasting (True/False)              |
 | NH3              | Option to run NH3 forecasting (True/False)              |
 | HCHO             | Option to run HCHO forecasting (True/False)             |
 | OZONE            | Option to run O3 forecasting (True/False)               |
 | PM25             | Option to run PM2.5 forecasting (True/False)            |
-| RESTART          | Option to use generated restart file instead of collecting inputs from UFS-AQM run (True/False). When `RESTART=Flase`, the input generator will read and process inputs from the specified UFS-AQM run. All processed inputs will be saved as a restart file. When `RESTART=True`, the model driver will directly read inputs from the restart file and the input processes will NOT be triggered. |
+| RESTART          | Option to use generated restart file instead of collecting inputs from UFS-AQM run (True/False). When `RESTART=Flase`, the input generator will read and process inputs from the specified UFS-AQM run. All processed inputs will be saved in a restart file. When `RESTART=True`, the model driver will directly read inputs from the restart file and the input processes will NOT be triggered. |
 | OUTPUT_PATH      | Path of the work/output directory. A subdirectory based on AQM_DATE and AQM_CYLCE will be created under this path.               |
 | AQM_PATH         | Path of UFS_AQM runs. The input generator will search for the subdirectory based on AQM_DATE and AQM_CYLCE under this path.      |
 | EMI_PATH         | Path of UFS_AQM emissions and IC/BC. The input generator will search for the subdirectory based on AQM_DATE and AQM_CYLCE under this path. |
@@ -36,19 +36,13 @@ The UFS-AQM run used as input sources, forecasting period and chmiecal species, 
 | Emission           | `aqm.t12z.NEXUS_Expt.nc`, `aqm.t12z.PT.nc`, `Hourly_Emissions_*.nc` |
 | Initial/Boundary   | `aqm.t12z.gfs_data.tile7.halo0.nc`, `aqm.t12z.gfs_bndy.tile7.f*.nc` |​
 
-### How to use
-1. Specify model options in the namelist.
-
-2. Make sure all required UFS-AQM inputs are under the right directories. Except for `grid_spec.nc`, which is already included in `fix/`, all inputs should locate under `AQM_PATH` and `EMI_PATH` as specified in the namelist.
-
-3. Run `model_pred.py`.
-
-On GMU Hopper (1 node 6 core), the input generation process takes ~ 4 min and each AI model takes ~ 7 min to complete 72 h forecast for a single species. Recommended slurm setting to run 72 h forecast for two chemical species on Hopper:
+### Run the models
+AI models are running parallelly in `model_pred.py`. On GMU Hopper (1 node 12 core), the input generation process takes ~ 4 min and AI models take ~ 13 min to complete 72 h forecast for two chemical species. Recommended slurm settings to run 72 h forecast for two chemical species on Hopper:
 ```
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=6
-#SBATCH --mem=36G
-#SBATCH --time=0-00:30:00
+#SBATCH --ntasks-per-node=12
+#SBATCH --mem=72G
+#SBATCH --time=0-00:20:00
 ```
 
 ### AI model version log
