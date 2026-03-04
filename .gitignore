@@ -25,4 +25,4 @@
 
 # Source code
 /__pycache__/
-/model_evaluation.py
+/scripts/model_evaluation.py

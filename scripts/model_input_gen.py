@@ -3,7 +3,9 @@ import os, sys, glob
 import numpy as np
 import xarray as xr
 import pandas as pd
-from toolkit.data_loaders import aqm_loader, aqm_bndy_loader, nexus_emi_loader, plume_emi_loader, fire_emi_loader
+
+sys.path.insert(0, "./toolkit")
+from data_loaders import aqm_loader, aqm_bndy_loader, nexus_emi_loader, plume_emi_loader, fire_emi_loader
 
 class input_generator():
     def namelist_config(self):

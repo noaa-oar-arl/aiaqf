@@ -1,7 +1,10 @@
+import sys
 import torch
 import torch.nn as nn
 import random
-from models.ConvLSTMCell import ConvLSTMCell
+
+sys.path.insert(0, "./models")
+from ConvLSTMCell import ConvLSTMCell
 
 class EncoderDecoderConvLSTM(nn.Module):
     def __init__(self, in_chan, out_chan):
