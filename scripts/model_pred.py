@@ -125,26 +125,32 @@ def save_prediction(TIMESTAMP, FCST_LENGTH, INIT, OUTPUT, FCST_SPECIES, FCST_LAY
     grid_yt = np.arange(grid_lat.shape[0]) + 1
     grid_xt = np.arange(grid_lat.shape[1]) + 1
 
-    output_file = f"{OUTPUT_PATH}/deepctm_fcst_layer{FCST_LAYER}_f{FCST_LENGTH:03d}.nc"
-
-    ds = xr.Dataset(
-        coords={
-            "time": ("time", fcst_hour),
-            "yt": ("grid_yt", grid_yt),
-            "xt": ("grid_xt", grid_xt),
-            "grid_lat": (("yt", "xt"), grid_lat),
-            "grid_lon": (("yt", "xt"), grid_lon)
-        }
-    )
-
-    ds["time_utc"] = xr.DataArray(fcst_time, dims=["time"], coords=[fcst_hour])
-    for i in range(len(FCST_SPECIES)):
-        species = FCST_SPECIES[i]
-        unit = unit_fulllist[var_fulllist.index(species)]
-        ds[species] = xr.DataArray(OUTPUT[:, i, :, :], dims=["time", "yt", "xt"], coords=[fcst_hour, grid_yt, grid_xt])
-        ds[species].attrs["unit"] = unit
-    ds.to_netcdf(output_file)
-    print(f"Forecast saved to {output_file}")
+    for tt in fcst_hour:
+        output_file = f"{OUTPUT_PATH}/deepctm_fcst_layer{FCST_LAYER}_f{tt:03d}.nc"
+    
+        ds = xr.Dataset(
+            coords={
+                "time": ("time", [tt]),
+                "yt": ("grid_yt", grid_yt),
+                "xt": ("grid_xt", grid_xt),
+                "grid_lat": (("yt", "xt"), grid_lat),
+                "grid_lon": (("yt", "xt"), grid_lon)
+            }
+        )
+    
+        ds["time_utc"] = xr.DataArray(fcst_time[tt], dims=["time"], coords=[[tt]])
+        for i in range(len(FCST_SPECIES)):
+            species = FCST_SPECIES[i]
+            unit = unit_fulllist[var_fulllist.index(species)]
+            ds[species] = xr.DataArray(
+                np.expand_dims(OUTPUT[tt, i, :, :], axis=0),
+                dims=["time", "yt", "xt"],
+                coords=[[tt], grid_yt, grid_xt]
+            )
+            ds[species].attrs["unit"] = unit
+        ds.to_netcdf(output_file)
+        del ds
+        print(f"Forecast saved to {output_file}")
 
 
 print("---- Initializaing DeepCTM...", pd.Timestamp("now"))
