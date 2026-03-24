@@ -1,7 +1,7 @@
 # aiaqf
 AI-based model to provide air quality forecasting.
 
-The repository provide the research-to-operation transition for implementing the UFS-DeepCTM, which uses UFS-AQM's inputs to makes air quality forecasting. Two major python scripts are included: the main model driver (`model_pred.py`) and the input generator (`model_input_gen.py`).
+The repository provide the research-to-operation transition for implementing the UFS-DeepAQM, which uses UFS-AQM's inputs to makes air quality forecasting. Two major python scripts are included: the main model driver (`model_pred.py`) and the input generator (`model_input_gen.py`).
 
 ### Namelist options
 The UFS-AQM run used as input sources, forecasting period and chmiecal species, and input and output directories can be specified in the namelist. Five chmiecal species (NO2, NH3, HCHO, O3 and PM2.5) are set as default, but currently only O3 and PM2.5 are available (updated on Feb 25 2026).
@@ -37,12 +37,20 @@ The UFS-AQM run used as input sources, forecasting period and chmiecal species, 
 | Initial/Boundary   | `aqm.t12z.gfs_data.tile7.halo0.nc`, `aqm.t12z.gfs_bndy.tile7.f*.nc` |​
 
 ### Run the models
-AI models are running parallelly in `model_pred.py`. On GMU Hopper (1 node 12 core), the input generation process takes ~ 4 min and AI models take ~ 13 min to complete 72 h forecast for two chemical species. Recommended slurm settings to run 72 h forecast for two chemical species on Hopper:
+AI models are running parallelly in `model_pred.py`. 
+
+On GMU Hopper (1 node 12 core), the input generation process takes ~ 4 min and AI models take ~ 13 min to complete 72 h forecast for two chemical species. Recommended slurm settings to run 72 h forecast for two chemical species on Hopper:
 ```
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=12
 #SBATCH --mem=72G
 #SBATCH --time=0-00:20:00
+```
+On NOAA Gaea C6 (1 node 2 core), the input generation process takes ~ 6 min and AI models take ~ 2 min to complete 72 h forecast for two chemical species. Recommended slurm settings to run 72 h forecast for two chemical species on Gaea C6:
+```
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+#SBATCH --time=0-00:10:00
 ```
 
 ### AI model version log
