@@ -126,7 +126,7 @@ def save_prediction(TIMESTAMP, FCST_LENGTH, INIT, OUTPUT, FCST_SPECIES, FCST_LAY
     grid_xt = np.arange(grid_lat.shape[1]) + 1
 
     for tt in fcst_hour:
-        output_file = f"{OUTPUT_PATH}/deepctm_fcst_layer{FCST_LAYER}_f{tt:03d}.nc"
+        output_file = f"{OUTPUT_PATH}/deepaqm_fcst_layer{FCST_LAYER}_f{tt:03d}.nc"
     
         ds = xr.Dataset(
             coords={
@@ -153,7 +153,7 @@ def save_prediction(TIMESTAMP, FCST_LENGTH, INIT, OUTPUT, FCST_SPECIES, FCST_LAY
         print(f"Forecast saved to {output_file}")
 
 
-print("---- Initializaing DeepCTM...", pd.Timestamp("now"))
+print("---- Initializaing DeepAQM...", pd.Timestamp("now"))
 
 device = torch.device("cpu")
 if(torch.cuda.is_available()):

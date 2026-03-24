@@ -25,4 +25,5 @@
 
 # Source code
 /scripts/model_evaluation.py
+/scripts/model_pred_seqrun.py
 /scripts/__pycache__/

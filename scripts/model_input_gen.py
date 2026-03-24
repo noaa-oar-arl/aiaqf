@@ -234,7 +234,7 @@ class input_generator():
                        "fricv", "pressfc", "cnwat", "snowc_ave"]
         fcst_variable = FCST_SPECIES
 
-        output_file = f"{OUTPUT_PATH}/deepctm_restart_layer{FCST_LAYER}_f{(len(FCST_TIME)-1):03d}.nc"
+        output_file = f"{OUTPUT_PATH}/deepaqm_restart_layer{FCST_LAYER}_f{(len(FCST_TIME)-1):03d}.nc"
 
         ds = xr.Dataset(
             coords={
@@ -271,7 +271,7 @@ class input_generator():
         AQM_DATE, AQM_CYCLE, AQM_PATH, EMI_PATH, OUTPUT_PATH, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER, RESTART = self.namelist_config()
     
         if RESTART:
-            RESTART_FILE = f"{OUTPUT_PATH}/deepctm_restart_layer{FCST_LAYER}_f{FCST_LENGTH:03d}.nc"
+            RESTART_FILE = f"{OUTPUT_PATH}/deepaqm_restart_layer{FCST_LAYER}_f{FCST_LENGTH:03d}.nc"
             print(f"Reading input data from restart file {RESTART_FILE}")
             STATIC = aqm_loader(RESTART_FILE, "static")
             MET = aqm_loader(RESTART_FILE, "met")
