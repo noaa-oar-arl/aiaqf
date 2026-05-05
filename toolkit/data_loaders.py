@@ -9,23 +9,56 @@ def aqm_loader(filename, varname):
     return ds[varname].data
 
 
-def aqm_bndy_loader(filename, varname, layer_idx, halo_idx):
+def aqm_bndy_loader(filename, varname, layer_idx, halo_idx, pm25ac, pm25co):
     ds = xr.open_dataset(filename)
     halo = len(ds["halo"].data)
     nx = len(ds["lon"].data) - (halo * 2)
     ny = len(ds["lat"].data)
 
     if varname == "pm25_tot":
-        varlist = ["aothrj", "asoil", "aecj", "aorgcj"]
-        top = np.zeros(nx)
-        bottom = np.zeros(nx)
-        left = np.zeros(ny)
-        right = np.zeros(ny)
-        for var in varlist:
-            top = top + ds[var + "_top"].data[layer_idx, halo_idx, halo:-1*halo]
-            bottom = bottom + ds[var + "_bottom"].data[layer_idx, halo_idx, halo:-1*halo]
-            left = left + ds[var + "_left"].data[layer_idx, :, halo_idx]
-            right = right + ds[var + "_right"].data[layer_idx, :, halo_idx]
+        top = (
+            pm25ac[0, :]
+            * (
+                ds["aecj_top"].data[layer_idx, halo_idx, halo:-1*halo]
+                + ds["aorgcj_top"].data[layer_idx, halo_idx, halo:-1*halo]
+                + ds["aothrj_top"].data[layer_idx, halo_idx, halo:-1*halo]
+            )
+            + pm25co[0, :]
+            * ds["asoil_top"].data[layer_idx, halo_idx, halo:-1*halo]
+        )
+
+        bottom = (
+            pm25ac[-1, :]
+            * (
+                ds["aecj_bottom"].data[layer_idx, halo_idx, halo:-1*halo]
+                + ds["aorgcj_bottom"].data[layer_idx, halo_idx, halo:-1*halo]
+                + ds["aothrj_bottom"].data[layer_idx, halo_idx, halo:-1*halo]
+            )
+            + pm25co[-1, :]
+            * ds["asoil_bottom"].data[layer_idx, halo_idx, halo:-1*halo]
+        )
+
+        left = (
+            pm25ac[:, 0]
+            * (
+                ds["aecj_left"].data[layer_idx, :, halo_idx]
+                + ds["aorgcj_left"].data[layer_idx, :, halo_idx]
+                + ds["aothrj_left"].data[layer_idx, :, halo_idx]
+            )
+            + pm25co[:, 0]
+            * ds["asoil_left"].data[layer_idx, :, halo_idx]
+        )
+
+        right = (
+            pm25ac[:, -1]
+            * (
+                ds["aecj_right"].data[layer_idx, :, halo_idx]
+                + ds["aorgcj_right"].data[layer_idx, :, halo_idx]
+                + ds["aothrj_right"].data[layer_idx, :, halo_idx]
+            )
+            + pm25co[:, -1]
+            * ds["asoil_right"].data[layer_idx, :, halo_idx]
+        )
     else:
         top = ds[varname + "_top"].data[layer_idx, halo_idx, halo:-1*halo]
         bottom = ds[varname + "_bottom"].data[layer_idx, halo_idx, halo:-1*halo]

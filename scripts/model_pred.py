@@ -25,7 +25,7 @@ def namelist_config():
 
     FCST_LENGTH = int(namelist["FCST_LENGTH"])
     BNDY_LENGTH = int(namelist["BNDY_LENGTH"])
-    FCST_LAYER = namelist["FCST_LAYER"]
+    FCST_LAYER = int(namelist["FCST_LAYER"])
 
     FCST_OPTION = [
         namelist["NO2"] in ["True", "true"],
@@ -117,11 +117,12 @@ def save_prediction(TIMESTAMP, FCST_LENGTH, INIT, OUTPUT, FCST_SPECIES, FCST_LAY
     OUTPUT = np.append(INIT, OUTPUT, axis=0)
 
     fcst_hour = np.arange(FCST_LENGTH +1)
-    fcst_time = pd.date_range(start=f"{TIMESTAMP}00", periods=FCST_LENGTH + 1, freq="h")  # f000 - f00N
-    fcst_time = fcst_time.strftime("%Y%m%d%H%M").astype("int")
+    fcst_time_pd = pd.date_range(start=f"{TIMESTAMP}00", periods=FCST_LENGTH + 1, freq="h")  # f000 - f00N
+    fcst_time = fcst_time_pd.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     grid_lon = aqm_loader("./fix/grid_spec.nc", "grid_lont")
     grid_lat = aqm_loader("./fix/grid_spec.nc", "grid_latt")
+    grid_lon[grid_lon >= 180] = grid_lon[grid_lon >= 180] - 360
     grid_yt = np.arange(grid_lat.shape[0]) + 1
     grid_xt = np.arange(grid_lat.shape[1]) + 1
 
@@ -130,27 +131,89 @@ def save_prediction(TIMESTAMP, FCST_LENGTH, INIT, OUTPUT, FCST_SPECIES, FCST_LAY
     
         ds = xr.Dataset(
             coords={
-                "time": ("time", [tt]),
-                "yt": ("grid_yt", grid_yt),
-                "xt": ("grid_xt", grid_xt),
-                "grid_lat": (("yt", "xt"), grid_lat),
-                "grid_lon": (("yt", "xt"), grid_lon)
+                "time": ("time", [np.float64(tt)]),
+                "grid_yt": ("grid_yt", np.float64(grid_yt)),
+                "grid_xt": ("grid_xt", np.float64(grid_xt)),
+                "z": ("z", [np.float64(FCST_LAYER)]),
+                "latitude": (("grid_yt", "grid_xt"), grid_lat),
+                "longitude": (("grid_yt", "grid_xt"), grid_lon)
             }
         )
+
+        time_iso = np.array(fcst_time[tt])
+        ds["time_iso"] = xr.DataArray([time_iso], dims=["time"], coords=[[np.float64(tt)]])
+        ds["time_iso"].attrs["long_name"] = "valid time"
+        ds["time_iso"].attrs["description"] = "ISO 8601 datetime string"
     
-        ds["time_utc"] = xr.DataArray(fcst_time[tt], dims=["time"], coords=[[tt]])
+        ds["latitude"].attrs["_FillValue"] = 9.99e+20
+        ds["latitude"].attrs["long_name"] = "T-cell latitude"
+        ds["latitude"].attrs["cartesian_axis"] = "Y"
+        ds["latitude"].attrs["units"] = "degrees_N"
+    
+        ds["longitude"].attrs["_FillValue"] = 9.99e+20
+        ds["longitude"].attrs["long_name"] = "T-cell longitude"
+        ds["longitude"].attrs["cartesian_axis"] = "X"
+        ds["longitude"].attrs["units"] = "degrees_E"
+    
         for i in range(len(FCST_SPECIES)):
             species = FCST_SPECIES[i]
             unit = unit_fulllist[var_fulllist.index(species)]
             ds[species] = xr.DataArray(
-                np.expand_dims(OUTPUT[tt, i, :, :], axis=0),
-                dims=["time", "yt", "xt"],
-                coords=[[tt], grid_yt, grid_xt]
+                np.expand_dims(OUTPUT[tt, i, :, :], axis=(0, 1)),
+                dims=["time", "z", "grid_yt", "grid_xt"],
+                coords=[[np.float64(tt)], [np.float64(FCST_LAYER)], np.float64(grid_yt), np.float64(grid_xt)]
             )
-            ds[species].attrs["unit"] = unit
-        ds.to_netcdf(output_file)
-        del ds
+            ds[species].attrs["_FillValue"] = 9.99e+20
+            ds[species].attrs["cell_methods"] = "time: point"
+            ds[species].attrs["long_name"] = f"hourly averaged {species}"
+            #ds[species].attrs["missing_value"] = 9.99e+20
+            ds[species].attrs["output_file"] = "deepaqm"
+            ds[species].attrs["units"] = unit
+
+        ds["time"].attrs["calendar"] = "JULIAN"
+        ds["time"].attrs["calendar_type"] = "JULIAN"
+        ds["time"].attrs["cartesian_axis"] = "T"
+        ds["time"].attrs["long_name"] = "time"
+        ds["time"].attrs["units"] = f"hours since {pd.to_datetime(TIMESTAMP, format='%Y%m%d%H').strftime('%Y-%m-%d %H:00:00')}"
+
+        ds.to_netcdf(output_file, format="NETCDF4_CLASSIC")
         print(f"Forecast saved to {output_file}")
+        del [output_file, ds, time_iso]
+
+
+# ---- Load configs ----
+AQM_DATE, AQM_CYCLE, OUTPUT_PATH, FCST_MODELS, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER = namelist_config()
+os.makedirs(OUTPUT_PATH, exist_ok=True)
+
+# ---- Log saving ----
+class StdoutLogger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        pass
+
+class StderrLogger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stderr
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+f_log = (f"{OUTPUT_PATH}/deepaqm_job")
+sys.stdout = StdoutLogger(f_log + ".log")
+sys.stderr = StderrLogger(f_log + ".err")
 
 
 print("---- Initializaing DeepAQM...", pd.Timestamp("now"))
@@ -159,9 +222,6 @@ device = torch.device("cpu")
 if(torch.cuda.is_available()):
     device = torch.device("cuda")
 
-
-AQM_DATE, AQM_CYCLE, OUTPUT_PATH, FCST_MODELS, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER = namelist_config()
-os.makedirs(OUTPUT_PATH, exist_ok=True)
 
 print(f"AQM initial time: {AQM_DATE}{AQM_CYCLE}")
 print(f"Forecast length: {FCST_LENGTH}")

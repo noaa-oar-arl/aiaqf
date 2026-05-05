@@ -1,4 +1,4 @@
-AQM_DATE=20240102
+AQM_DATE={{ aqm_date }}
 AQM_CYCLE=12
 FCST_LENGTH=72
 BNDY_LENGTH=6
@@ -12,7 +12,7 @@ PM25=True
 
 RESTART=True
 
-OUTPUT_PATH=/gpfs/f6/naqfc-cpu/scratch/Wei-ting.Hung/deepaqm/output/2024010212
+OUTPUT_PATH=/gpfs/f6/naqfc-cpu/scratch/Wei-ting.Hung/deepaqm/output/{{ aqm_date }}12
 AQM_PATH=/gpfs/f6/bil-fire3/scratch/Youhua.Tang/aqm_rundir/aqm_AQMNA13km_2023
 EMI_PATH=/gpfs/f6/bil-fire3/scratch/Youhua.Tang/aqm_rundir/ptmp/test_aqm_warmstart/com/aqm/v1.0.0
 
@@ -21,3 +21,4 @@ NH3_MODEL_PATH=None
 HCHO_MODEL_PATH=None
 OZONE_MODEL_PATH=./models/fcst_ozone_model.pth
 PM25_MODEL_PATH=./models/fcst_pm25_model.pth
+

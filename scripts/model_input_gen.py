@@ -167,9 +167,10 @@ class input_generator():
         return total_emi
     
     
-    def read_icbc_fields(self, EMI_PATH, AQM_CYCLE, FCST_TIME, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER):
+    def read_icbc_fields(self, AQM_PATH, EMI_PATH, AQM_CYCLE, FCST_TIME, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER):
         species_fulllist = ["NO2", "NH3", "HCHO", "OZONE", "PM25"]
         varlist = ["no2", "nh3", "form", "o3", "pm25_tot"]
+        dynlist = ["no2", "nh3", "form", "o3_ave", "pm25_ave"]
         offset = [    0,    0,    0,    0,    0]
         scaler = [ 1e-2, 1e-2, 1e-2, 1e-2,   10]
 
@@ -190,26 +191,55 @@ class input_generator():
             data = np.repeat(np.expand_dims(data, axis=0), len(FCST_TIME), axis=0)
 
             # BC
-            halo = 0  # inner layer
-            aqm_date = (pd.to_datetime(FCST_TIME, format="%Y%m%d%H") - pd.Timedelta(hours=int(AQM_CYCLE))).strftime("%Y%m%d")
-            bndy_idx = np.arange(0, len(FCST_TIME), BNDY_LENGTH)
-            bndy_hour = bndy_idx % 24
-            bndy_hour[1:][bndy_hour[1:]==0]=24  # keep f000 for initial date
-
-            for i in range(len(bndy_hour)):
-                if bndy_hour[i] == 24:
-                    rundate = (pd.to_datetime(aqm_date[bndy_idx[i]], format="%Y%m%d") - pd.Timedelta(days=1)).strftime("%Y%m%d")
+            for i in range(len(FCST_TIME)):
+                time = FCST_TIME[i]
+                aqm_timestep = pd.to_datetime(time, format="%Y%m%d%H") - pd.Timedelta(hours=int(AQM_CYCLE))
+                if (time != FCST_TIME[0]) & (aqm_timestep.strftime("%H%M") == "0000"):
+                    aqm_date = (aqm_timestep - pd.Timedelta(days=1)).strftime("%Y%m%d")
+                    aqm_hour = "24"
                 else:
-                    rundate = aqm_date[bndy_idx[i]]
-                emi_path = f"{EMI_PATH}/aqm.{rundate}/{AQM_CYCLE}"
-                bndy_file = f"{emi_path}/aqm.t12z.gfs_bndy.tile7.f{bndy_hour[i]:03d}.nc"
-                print(f"Read BC from {bndy_file}")
-                top, bottom, left, right = aqm_bndy_loader(bndy_file, varlist[idx], FCST_LAYER, halo)
-                ll = data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, :].shape[0]
-                data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, 0, :] = np.repeat(np.expand_dims(top, axis=0), ll, axis=0)
-                data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, -1, :] = np.repeat(np.expand_dims(bottom, axis=0), ll, axis=0)
-                data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, :, 0] = np.repeat(np.expand_dims(left, axis=0), ll, axis=0)
-                data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, :, -1] = np.repeat(np.expand_dims(right, axis=0), ll, axis=0)
+                    aqm_date = aqm_timestep.strftime("%Y%m%d")
+                    aqm_hour = aqm_timestep.strftime("%H")
+        
+                dyn_file = f"{AQM_PATH}/{aqm_date}{AQM_CYCLE}/dynf0{aqm_hour}.nc"
+                print(f"Read BC from {dyn_file}")
+
+                bc = aqm_loader(dyn_file, dynlist[idx])
+                bc = np.squeeze(bc[0, FCST_LAYER - 1, :, :])
+                if species == "OZONE":
+                    bc = bc / 1000
+
+                data[i, 0, :] = bc[0, :]  # top
+                data[i, -1, :] = bc[-1, :]  # bottom
+                data[i, :, 0] = bc[:, 0]  # left
+                data[i, :, -1] = bc[:, -1]  # right
+                del [time, aqm_date, aqm_hour, dyn_file, bc]
+
+            #halo = 0  # inner layer
+            #aqm_date = (pd.to_datetime(FCST_TIME, format="%Y%m%d%H") - pd.Timedelta(hours=int(AQM_CYCLE))).strftime("%Y%m%d")
+            #bndy_idx = np.arange(0, len(FCST_TIME), BNDY_LENGTH)
+            #bndy_hour = bndy_idx % 24
+            #bndy_hour[1:][bndy_hour[1:]==0]=24  # keep f000 for initial date
+
+            #pm25ac = aqm_loader(init_file, "pm25ac")
+            #pm25ac = np.squeeze(pm25ac[FCST_LAYER, :, :])
+            #pm25co = aqm_loader(init_file, "pm25co")
+            #pm25co = np.squeeze(pm25co[FCST_LAYER, :, :])
+
+            #for i in range(len(bndy_hour)):
+            #    if bndy_hour[i] == 24:
+            #        rundate = (pd.to_datetime(aqm_date[bndy_idx[i]], format="%Y%m%d") - pd.Timedelta(days=1)).strftime("%Y%m%d")
+            #    else:
+            #        rundate = aqm_date[bndy_idx[i]]
+            #    emi_path = f"{EMI_PATH}/aqm.{rundate}/{AQM_CYCLE}"
+            #    bndy_file = f"{emi_path}/aqm.t12z.gfs_bndy.tile7.f{bndy_hour[i]:03d}.nc"
+            #    print(f"Read BC from {bndy_file}")
+            #    top, bottom, left, right = aqm_bndy_loader(bndy_file, varlist[idx], FCST_LAYER, halo, pm25ac, pm25co)
+            #    ll = data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, :].shape[0]
+            #    data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, 0, :] = np.repeat(np.expand_dims(top, axis=0), ll, axis=0)
+            #    data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, -1, :] = np.repeat(np.expand_dims(bottom, axis=0), ll, axis=0)
+            #    data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, :, 0] = np.repeat(np.expand_dims(left, axis=0), ll, axis=0)
+            #    data[bndy_idx[i]:bndy_idx[i]+BNDY_LENGTH, :, -1] = np.repeat(np.expand_dims(right, axis=0), ll, axis=0)
 
             data = (data - offset[idx]) / scaler[idx]
             data = np.expand_dims(data, 1)
@@ -288,7 +318,7 @@ class input_generator():
             STATIC = self.read_static_fields(f"{AQM_PATH}/{AQM_DATE}{AQM_CYCLE}")
             MET = self.read_met_fields(AQM_PATH, AQM_CYCLE, FCST_TIME[1:])
             EMI = self.read_emi_fields(AQM_PATH, EMI_PATH, AQM_CYCLE, FCST_TIME[1:])
-            ICBC = self.read_icbc_fields(EMI_PATH, AQM_CYCLE, FCST_TIME, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER)
+            ICBC = self.read_icbc_fields(AQM_PATH, EMI_PATH, AQM_CYCLE, FCST_TIME, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER)
             self.save_restart(FCST_TIME, (EMI, STATIC, MET, ICBC), FCST_SPECIES, FCST_LAYER, OUTPUT_PATH)
 
         # Input shape = (batch, time, channel, height, width)
