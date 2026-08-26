@@ -108,7 +108,7 @@ class EncoderDecoderConvLSTM(nn.Module):
 
         # find size of different input dimensions
         b, seq_len, _, h, w = x.size()
-
+        
         # initialize hidden states
         h_t, c_t = self.encoder_1_convlstm.init_hidden(batch_size=b, image_size=(h, w))
         h_t2, c_t2 = self.encoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))

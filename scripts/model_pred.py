@@ -10,7 +10,7 @@ from functools import partial
 
 sys.path.insert(0, "./toolkit")
 sys.path.insert(0, "./models")
-from data_loaders import aqm_loader
+from aqm_loaders import aqm_loader
 from model_input_gen import input_generator
 from seq2seq_ConvLSTM import EncoderDecoderConvLSTM
 
@@ -22,10 +22,14 @@ def namelist_config():
     AQM_DATE = namelist["AQM_DATE"]
     AQM_CYCLE = namelist["AQM_CYCLE"]
     OUTPUT_PATH = namelist["OUTPUT_PATH"]
+    OUTPUT_PATH = f"{OUTPUT_PATH}/{AQM_DATE}/{AQM_CYCLE}"
 
     FCST_LENGTH = int(namelist["FCST_LENGTH"])
     BNDY_LENGTH = int(namelist["BNDY_LENGTH"])
     FCST_LAYER = int(namelist["FCST_LAYER"])
+
+    MET_OPTION = namelist["MET_OPTION"]
+    BNDY_OPTION = namelist["BNDY_OPTION"]
 
     FCST_OPTION = [
         namelist["NO2"] in ["True", "true"],
@@ -44,7 +48,7 @@ def namelist_config():
     FCST_SPECIES = ["NO2", "NH3", "HCHO", "OZONE", "PM25"]
     FCST_SPECIES = [species for species, opt in zip(FCST_SPECIES, FCST_OPTION) if opt]
     FCST_MODELS = [models for models, opt in zip(FCST_MODELS, FCST_OPTION) if opt]
-    return AQM_DATE, AQM_CYCLE, OUTPUT_PATH, FCST_MODELS, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER
+    return AQM_DATE, AQM_CYCLE, OUTPUT_PATH, FCST_MODELS, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER, MET_OPTION, BNDY_OPTION
 
 def fcst_task(idx, FCST_MODELS, FCST_SPECIES, INPUT_SET, FCST_LENGTH, species_fulllist, species_scaler, species_chan, species_emidx):
     model_path = FCST_MODELS[idx]
@@ -57,7 +61,7 @@ def fcst_task(idx, FCST_MODELS, FCST_SPECIES, INPUT_SET, FCST_LENGTH, species_fu
 
     learningrate = 0.00001
     model = EncoderDecoderConvLSTM(in_chan=N_chan, out_chan=1).to(device=device)
-    checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
+    checkpoint = torch.load(model_path, map_location=torch.device(device))
     model.load_state_dict(checkpoint["model_state_dict"])
 
     print(f"{species} fcst model loaded: {model_path}", pd.Timestamp("now"))
@@ -69,11 +73,15 @@ def fcst_task(idx, FCST_MODELS, FCST_SPECIES, INPUT_SET, FCST_LENGTH, species_fu
     tensor_label = torch.Tensor(input_label)
     tensor_input = torch.utils.data.TensorDataset(tensor_em, tensor_ic, tensor_met, tensor_label)
     data_loader = torch.utils.data.DataLoader(tensor_input, batch_size=1, shuffle=False, num_workers=0)
+    print("Data loader created.")
 
     model.eval()
     with torch.no_grad():
         for batch_idx, (em, gd, met, label) in enumerate(data_loader):
             tmet = torch.cat((em, met), 2)
+            tmet = tmet.to(device=device)
+            gd = gd.to(device=device)
+            label = label.to(device=device)
             out = model(tmet, label, gd[:, 0, :, :, :], FCST_LENGTH)
     out = np.squeeze(out.cpu().detach().numpy())
     out = out * scaler
@@ -92,20 +100,24 @@ def run_fcst_model(FCST_MODELS, INPUT_SET, FCST_SPECIES, FCST_LENGTH):
         np.arange(15)    # full list
     ]
 
-    worker = partial(
-        fcst_task,
-        FCST_MODELS=FCST_MODELS,
-        FCST_SPECIES=FCST_SPECIES,
-        INPUT_SET=INPUT_SET,
-        FCST_LENGTH=FCST_LENGTH,
-        species_fulllist=species_fulllist,
-        species_scaler=species_scaler,
-        species_chan=species_chan,
-        species_emidx=species_emidx
-    )
+    #worker = partial(
+    #    fcst_task,
+    #    FCST_MODELS=FCST_MODELS,
+    #    FCST_SPECIES=FCST_SPECIES,
+    #    INPUT_SET=INPUT_SET,
+    #    FCST_LENGTH=FCST_LENGTH,
+    #    species_fulllist=species_fulllist,
+    #    species_scaler=species_scaler,
+    #    species_chan=species_chan,
+    #    species_emidx=species_emidx
+    #)
+    #with multiprocessing.Pool() as pool:
+    #    total_out = pool.map(worker, range(len(FCST_MODELS)))
 
-    with multiprocessing.Pool() as pool:
-        total_out = pool.map(worker, range(len(FCST_MODELS)))
+    total_out = []
+    for i in range(len(FCST_MODELS)):
+        predic = fcst_task(i, FCST_MODELS, FCST_SPECIES, INPUT_SET, FCST_LENGTH, species_fulllist, species_scaler, species_chan, species_emidx)
+        total_out += [predic]
     total_out = np.stack(total_out, 1)
     return total_out
 
@@ -182,7 +194,7 @@ def save_prediction(TIMESTAMP, FCST_LENGTH, INIT, OUTPUT, FCST_SPECIES, FCST_LAY
 
 
 # ---- Load configs ----
-AQM_DATE, AQM_CYCLE, OUTPUT_PATH, FCST_MODELS, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER = namelist_config()
+AQM_DATE, AQM_CYCLE, OUTPUT_PATH, FCST_MODELS, FCST_LENGTH, BNDY_LENGTH, FCST_SPECIES, FCST_LAYER, BNDY_OPTION, MET_OPTION = namelist_config()
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
 # ---- Log saving ----
@@ -225,7 +237,8 @@ if(torch.cuda.is_available()):
 
 print(f"AQM initial time: {AQM_DATE}{AQM_CYCLE}")
 print(f"Forecast length: {FCST_LENGTH}")
-print(f"BC update timestep: {np.arange(0, FCST_LENGTH + 1, BNDY_LENGTH)}")
+print(f"LBC update timestep: {np.arange(0, FCST_LENGTH + 1, BNDY_LENGTH)}")
+print(f"Met source: {MET_OPTION}, LBC source: {BNDY_OPTION}")
 print(f"Forecast species: {FCST_SPECIES} at layer {FCST_LAYER}")
 print(f"Work directory: {OUTPUT_PATH}")
 
@@ -251,3 +264,5 @@ print(f"Output min: {FCST_OUTPUT.min()}, max: {FCST_OUTPUT.max()}")
 print(f"Output shape: {FCST_OUTPUT.shape}")
 
 save_prediction(AQM_DATE + AQM_CYCLE, FCST_LENGTH, INPUT_DATA[3][:, 0, :, :, :], FCST_OUTPUT, FCST_SPECIES, FCST_LAYER, OUTPUT_PATH)
+
+open(f"{OUTPUT_PATH}/complete_checkpoint", "a").close()

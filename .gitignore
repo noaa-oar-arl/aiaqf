@@ -8,7 +8,8 @@
 
 # Fix files
 /fix/airnow2aqm_grid_idx.nc
-/fix/regrid_*
+/fix/regrid_tempo_*
+/fix/regrid_viirs_*
 
 # ML model files
 /models/readme
@@ -16,12 +17,15 @@
 /models/__pycache__/
 
 # Toolkit
-/toolkit/*_regridder.py
+/toolkit/airnow2aqm_regridder.py
+/toolkit/aqs2aqm_regridder.py
+/toolkit/sat2aqm_regridder.py
 /toolkit/data_loaders_all.py
 /toolkit/__pycache__/
 
 # Output folder
 /output/20*/
+/output/*.tar.gz
 
 # Source code
 /scripts/model_evaluation.py
