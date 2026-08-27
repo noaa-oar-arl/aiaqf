@@ -13,6 +13,8 @@ The UFS-AQM run used as input sources, forecasting period and chmiecal species, 
 | FCST_LENGTH      | Length of forecast timestep, unit=hour                  |
 | BNDY_LENGTH      | Time interval of UFS-AQM boundary conditions, unit=hour |
 | FCST_LAYER       | The UFS-AQM vertical layer where forecasting chmiecal species at. FCST_LAYER=64 represents the surface based on UFS-AQM configuration. |
+| MET_OPTION       | Source of met data (GFS/AQM)                            |
+| BNDY_OPTION      | Source of LBC data (retro/fcst). For retro, LBC will be generated from AQM dyn outputs. For fcst, LBC will be loaded from AQM LBC files. |
 | NO2              | Option to run NO2 forecasting (True/False)              |
 | NH3              | Option to run NH3 forecasting (True/False)              |
 | HCHO             | Option to run HCHO forecasting (True/False)             |
@@ -29,15 +31,17 @@ The UFS-AQM run used as input sources, forecasting period and chmiecal species, 
 | PM25_MODEL_PATH  | Path of the PM25 AI model. Use `None` if no model available.  |
 
 ### Required UFS-AQM inputs
-| Application        | Filename                                                            |
-| ------------------ | ------------------------------------------------------------------- |
-| Model Coordinate   | `grid_spec.nc` (included in `fix/`)                                 |
-| Meteorology        | `phyf*.nc`                                                          |
-| Emission           | `aqm.t12z.NEXUS_Expt.nc`, `aqm.t12z.PT.nc`, `Hourly_Emissions_*.nc` |
-| Initial/Boundary   | `aqm.t12z.gfs_data.tile7.halo0.nc`, `aqm.t12z.gfs_bndy.tile7.f*.nc` |​
+| Application                          | Filename                                                            |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| Model Coordinate / land properties   | `grid_spec.nc` `atmos_static.nc` (included in `fix/`)               |
+| Meteorology                          | Operational GFS or `phyf*.nc` from AQM                              |
+| Emission                             | `aqm.t*z.NEXUS_Expt.nc`, `aqm.t*z.PT.nc`, `Hourly_Emissions_*.nc` |
+| Initial/Boundary                     | `aqm.t*z.gfs_data.tile7.halo0.nc`, `aqm.t*z.gfs_bndy.tile7.f*.nc` |​
 
 ### Run the models
 AI models are running parallelly in `model_pred.py`. 
+
+[Update on Aug 26 2026] Parallel process is currently disabled for GPU. See line 108-120 in `model_pred.py`.
 
 On GMU Hopper (1 node 12 core), the input generation process takes ~ 4 min and AI models take ~ 13 min to complete 72 h forecast for two chemical species. Recommended slurm settings to run 72 h forecast for two chemical species on Hopper:
 ```
@@ -51,6 +55,21 @@ On NOAA Gaea C6 (1 node 2 core), the input generation process takes ~ 6 min and 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 #SBATCH --time=0-00:10:00
+```
+On NOAA Ursa, if running on CPU (1 node 20 core), the input generation process takes ~ 11 min and AI models take ~ 1 hour to complete 72 h forecast for two chemical species. If running forecasting on 1 GPU, AI models take ~ 2 min to complete 72 h forecast for two chemical species. Recommended slurm settings to run 72 h forecast for two chemical species on Ursa:
+
+[CPU]
+```
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --time=0-01:20:00
+```
+[GPU]
+```
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --gpus=h100:1
+#SBATCH --time=0-00:20:00
 ```
 
 ### AI model version log
